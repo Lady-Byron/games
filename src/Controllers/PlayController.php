@@ -23,7 +23,7 @@ final class PlayController implements RequestHandlerInterface
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        // Flarum 1.x：路由占位符合并进 query params
+        // Flarum 1.x：路由占位符已合并进 query params
         $qp   = $request->getQueryParams();
         $raw  = (string) Arr::get($qp, 'slug', '');
         $slug = trim(rawurldecode($raw), " \t\n\r\0\x0B/");
@@ -34,17 +34,16 @@ final class PlayController implements RequestHandlerInterface
             return new HtmlResponse('Invalid slug', 400);
         }
 
+        // 改动点：未登录 → 重定向到论坛首页
         if ($actor->isGuest()) {
-            // 使用 UrlGenerator 生成“登录页 + 回跳”URL（适配子目录部署）
-            $returnUrl = $this->url->to('forum')->route('ladybyron-games.play', ['slug' => $slug]);
-            $loginUrl  = $this->url->to('forum')->path('login') . '?return=' . rawurlencode($returnUrl);
-            return new RedirectResponse($loginUrl, 302);
+            $home = $this->url->to('forum')->path('');
+            return new RedirectResponse($home, 302);
         }
 
-        // 使用 Paths 获取 storage 路径（代替 base_path()）
+        // 使用 Paths 获取 storage 路径
         $base = $this->paths->storage . DIRECTORY_SEPARATOR . 'games';
 
-        // 引擎链（不改业务逻辑：Ink 识别优先，Twine 兜底）
+        // 引擎链（Ink 识别优先，Twine 兜底；不改业务逻辑）
         $chain = new EngineChain([
             new InkEngine($base),
             new TwineEngine($base),
@@ -55,7 +54,7 @@ final class PlayController implements RequestHandlerInterface
             return new HtmlResponse('Game not found', 404);
         }
 
-        // 保持已有的 debug 处理（仅管理员可见且不回显绝对路径）
+        // debug 仅管理员可见，且不回显绝对路径
         $debugRequested = !empty(Arr::get($qp, 'debug'));
         $debugAllowed   = $debugRequested && $actor->isAdmin();
         if ($debugAllowed) {
@@ -75,7 +74,7 @@ final class PlayController implements RequestHandlerInterface
             return new HtmlResponse('Failed to load', 500);
         }
 
-        // 注入当前论坛用户名（保留原实现）
+        // 注入当前论坛用户名（与原实现一致）
         if (empty(Arr::get($qp, 'noinject'))) {
             $username = (string) $actor->username;
             $inject   = '<script>window.ForumUser=' . json_encode($username, JSON_UNESCAPED_UNICODE) . ';</script>';
