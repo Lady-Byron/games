@@ -23,7 +23,6 @@ final class PlayController implements RequestHandlerInterface
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        // Flarum 1.x：路由占位符已合并进 query params
         $qp   = $request->getQueryParams();
         $raw  = (string) Arr::get($qp, 'slug', '');
         $slug = trim(rawurldecode($raw), " \t\n\r\0\x0B/");
@@ -34,16 +33,14 @@ final class PlayController implements RequestHandlerInterface
             return new HtmlResponse('Invalid slug', 400);
         }
 
-        // 改动点：未登录 → 重定向到论坛首页
+        // 未登录 -> 绝对首页 URL（避免 /login GET 405）
         if ($actor->isGuest()) {
-            $home = $this->url->to('forum')->path('');
+            $home = $this->url->to('forum')->base(); // e.g. https://forum.example.com
             return new RedirectResponse($home, 302);
         }
 
-        // 使用 Paths 获取 storage 路径
         $base = $this->paths->storage . DIRECTORY_SEPARATOR . 'games';
 
-        // 引擎链（Ink 识别优先，Twine 兜底；不改业务逻辑）
         $chain = new EngineChain([
             new InkEngine($base),
             new TwineEngine($base),
@@ -61,8 +58,8 @@ final class PlayController implements RequestHandlerInterface
             $lines = [
                 'DEBUG (admin only)',
                 'slug=' . $slug,
-                'engine=' . $resolved->engine,   // ink | twine
-                'shape=' . $resolved->shape,     // dir | legacy
+                'engine=' . $resolved->engine,
+                'shape=' . $resolved->shape,
             ];
             return new HtmlResponse(implode("\n", $lines), 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
@@ -74,7 +71,6 @@ final class PlayController implements RequestHandlerInterface
             return new HtmlResponse('Failed to load', 500);
         }
 
-        // 注入当前论坛用户名（与原实现一致）
         if (empty(Arr::get($qp, 'noinject'))) {
             $username = (string) $actor->username;
             $inject   = '<script>window.ForumUser=' . json_encode($username, JSON_UNESCAPED_UNICODE) . ';</script>';
@@ -90,4 +86,3 @@ final class PlayController implements RequestHandlerInterface
         return new HtmlResponse($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
     }
 }
-
