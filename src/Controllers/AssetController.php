@@ -1,7 +1,9 @@
 <?php
 namespace LadyByron\Games\Controllers;
 
+use Flarum\Foundation\Paths;
 use Flarum\Http\RequestUtil;
+use Flarum\Http\UrlGenerator;
 use Illuminate\Support\Arr;
 use Laminas\Diactoros\Response\HtmlResponse;
 use Laminas\Diactoros\Response\RedirectResponse;
@@ -11,6 +13,11 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 final class AssetController implements RequestHandlerInterface
 {
+    public function __construct(
+        private UrlGenerator $url,
+        private Paths $paths
+    ) {}
+
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $qp   = $request->getQueryParams();
@@ -20,15 +27,21 @@ final class AssetController implements RequestHandlerInterface
 
         $actor = RequestUtil::getActor($request);
         if ($actor->isGuest()) {
-            return new RedirectResponse('/login?return=' . rawurlencode($request->getUri()->getPath()), 302);
+            // 使用 UrlGenerator 生成当前资源的回跳 URL（适配子目录部署）
+            $returnUrl = $this->url->to('forum')->route('ladybyron-games.asset', [
+                'slug' => $slug,
+                'path' => $path,
+            ]);
+            $loginUrl  = $this->url->to('forum')->path('login') . '?return=' . rawurlencode($returnUrl);
+            return new RedirectResponse($loginUrl, 302);
         }
 
         if ($slug === '' || !preg_match('~^[a-z0-9_-]+$~i', $slug) || str_contains($path, '..')) {
             return new HtmlResponse('Invalid path', 400);
         }
 
-        $base = base_path() . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'games';
-        $dir  = $base . DIRECTORY_SEPARATOR . $slug;
+        // 使用 Paths 获取 storage 路径（代替 base_path()）
+        $dir  = $this->paths->storage . DIRECTORY_SEPARATOR . 'games' . DIRECTORY_SEPARATOR . $slug;
         $full = realpath($dir . DIRECTORY_SEPARATOR . $path);
 
         if ($full === false || !str_starts_with($full, $dir . DIRECTORY_SEPARATOR) || !is_file($full) || !is_readable($full)) {
