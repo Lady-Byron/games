@@ -13,7 +13,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 final class SaveUpsertController implements RequestHandlerInterface
 {
-    // 最大状态体积（防滥用/DoS），可按需调大
+    // 最大状态体积（防滥用/DoS）
     private const STATE_MAX_BYTES = 512 * 1024;
 
     public function __construct(protected UrlGenerator $url) {}
@@ -31,8 +31,16 @@ final class SaveUpsertController implements RequestHandlerInterface
             return new JsonResponse(['error' => 'invalid_slug'], 400);
         }
 
-        $raw = (string) $request->getBody()->getContents();
-        $json = json_decode($raw, true);
+        // —— 关键修复：优先用 parsedBody，必要时回退读取原始流并 rewind ——
+        $json = $request->getParsedBody();
+        if (!is_array($json)) {
+            $body = $request->getBody();
+            if ($body->tell() !== 0 && $body->isSeekable()) {
+                $body->rewind();
+            }
+            $raw  = (string) $body->getContents();
+            $json = json_decode($raw, true);
+        }
         if (!is_array($json)) {
             return new JsonResponse(['error' => 'invalid_json'], 400);
         }
@@ -60,24 +68,24 @@ final class SaveUpsertController implements RequestHandlerInterface
             ->first();
 
         if ($existing) {
-            // 乐观锁：客户端带 rev，若不一致返回 409
+            // 乐观并发：客户端带 rev，不一致则 409
             if ($rev !== 0 && $rev !== (int) $existing->rev) {
                 return new JsonResponse([
-                    'error' => 'conflict',
+                    'error'   => 'conflict',
                     'current' => ['rev' => (int) $existing->rev],
                 ], 409);
             }
 
             $existing->state_json = $stateJson;
-            if ($meta !== null) $existing->meta_json = $meta;
-            if ($storyHash !== '') $existing->story_hash = $storyHash;
+            if ($meta !== null)      $existing->meta_json  = $meta;
+            if ($storyHash !== '')   $existing->story_hash = $storyHash;
             $existing->rev = (int) $existing->rev + 1;
             $existing->save();
 
             return new JsonResponse([
-                'ok'  => true,
-                'rev' => (int) $existing->rev,
-                'slot'=> $existing->slot,
+                'ok'        => true,
+                'rev'       => (int) $existing->rev,
+                'slot'      => $existing->slot,
                 'updatedAt' => $existing->updated_at?->toAtomString(),
             ], 200);
         }
@@ -93,9 +101,9 @@ final class SaveUpsertController implements RequestHandlerInterface
         ]);
 
         return new JsonResponse([
-            'ok'  => true,
-            'rev' => 1,
-            'slot'=> $row->slot,
+            'ok'        => true,
+            'rev'       => 1,
+            'slot'      => $row->slot,
             'updatedAt' => $row->updated_at?->toAtomString(),
         ], 201);
     }
