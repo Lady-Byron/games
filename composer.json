@@ -1,0 +1,30 @@
+{
+  "name": "lady-byron/games",
+  "type": "flarum-extension",
+  "description": "Embed Twine/Ink games into Flarum (login-gated) with simple asset routing.",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.1",
+    "flarum/core": "^1.8",
+    "laminas/laminas-diactoros": "^2.20",
+    "illuminate/support": "^10.0|^11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "LadyByron\\Games\\": "src/"
+    }
+  },
+  "extra": {
+    "flarum-extension": {
+      "title": "Lady Byron Games",
+      "category": "misc",
+      "icon": {
+        "name": "fas fa-gamepad",
+        "backgroundColor": "#4D774C",
+        "color": "#ffffff"
+      }
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
