@@ -26,21 +26,17 @@ final class AssetController implements RequestHandlerInterface
         $path = (string) Arr::get($qp, 'path', '');
 
         $actor = RequestUtil::getActor($request);
+
+        // 未登录 -> 绝对首页 URL
         if ($actor->isGuest()) {
-            // 使用 UrlGenerator 生成当前资源的回跳 URL（适配子目录部署）
-            $returnUrl = $this->url->to('forum')->route('ladybyron-games.asset', [
-                'slug' => $slug,
-                'path' => $path,
-            ]);
-            $loginUrl  = $this->url->to('forum')->path('login') . '?return=' . rawurlencode($returnUrl);
-            return new RedirectResponse($loginUrl, 302);
+            $home = $this->url->to('forum')->base();
+            return new RedirectResponse($home, 302);
         }
 
         if ($slug === '' || !preg_match('~^[a-z0-9_-]+$~i', $slug) || str_contains($path, '..')) {
             return new HtmlResponse('Invalid path', 400);
         }
 
-        // 使用 Paths 获取 storage 路径（代替 base_path()）
         $dir  = $this->paths->storage . DIRECTORY_SEPARATOR . 'games' . DIRECTORY_SEPARATOR . $slug;
         $full = realpath($dir . DIRECTORY_SEPARATOR . $path);
 
@@ -78,3 +74,4 @@ final class AssetController implements RequestHandlerInterface
         return $res;
     }
 }
+
