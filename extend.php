@@ -1,28 +1,19 @@
 <?php
 
-namespace LadyByron\Games;
-
 use Flarum\Extend;
 use LadyByron\Games\Controllers\PlayController;
 use LadyByron\Games\Controllers\AssetController;
-use LadyByron\Games\Saves\SavesListController;
-use LadyByron\Games\Saves\SaveUpsertController;
-use LadyByron\Games\Saves\SaveDeleteController;
 
 return [
-    // 原有：游戏入口与资源
+    // 前台（forum）路由
     (new Extend\Routes('forum'))
-        ->get('/play/{slug:[^/]+}', 'ladybyron-games.play', PlayController::class)
-        ->get('/play/{slug:[^/]+}/asset/{path:.+}', 'ladybyron-games.asset', AssetController::class),
+        // 游戏入口：/play/{slug}
+        // 如：/play/raise-the-lord
+        ->get('/play/{slug:[A-Za-z0-9_-]+}', 'games.play', PlayController::class)
 
-    // 新增：云存档 API（forum 路由，走会话+CSRF，中间件自动套用）
-    (new Extend\Routes('forum'))
-        // 列表：GET /playapi/saves/{slug}
-        ->get('/playapi/saves/{slug:[^/]+}', 'ladybyron-games.saves.index', SavesListController::class)
-        // 读取：GET /playapi/saves/{slug}/{slot}
-        ->get('/playapi/saves/{slug:[^/]+}/{slot:[^/]+}', 'ladybyron-games.saves.show', SavesListController::class)
-        // 写入/更新：POST /playapi/saves/{slug}
-        ->post('/playapi/saves/{slug:[^/]+}', 'ladybyron-games.saves.upsert', SaveUpsertController::class)
-        // 删除：DELETE /playapi/saves/{slug}/{slot}
-        ->delete('/playapi/saves/{slug:[^/]+}/{slot:[^/]+}', 'ladybyron-games.saves.delete', SaveDeleteController::class),
+        // 静态资源：/play/{slug}/asset/{path}
+        // 如：/play/raise-the-lord/asset/css/solid.min.css
+        //     /play/raise-the-lord/asset/webfonts/fa-solid-900.woff2
+        ->get('/play/{slug:[A-Za-z0-9_-]+}/asset/{path:.+}', 'games.asset', AssetController::class),
 ];
+
